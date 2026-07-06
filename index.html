@@ -77,19 +77,6 @@
     input:focus { border-color: var(--green); border-left-color: var(--green); box-shadow: 0 0 0 3px rgba(74,124,63,.12); background: #fff; }
     input.is-error { border-color: var(--red); border-left-color: var(--red); box-shadow: 0 0 0 3px rgba(185,28,28,.1); }
     input.is-valid { border-left-color: var(--green); }
-
-    /* CAMPO NUMÉRICO CON SIGNO (soluciona ausencia de tecla "-" en teclado decimal de iOS) */
-    .signed-field { position: relative; }
-    .signed-field input { padding-left: 3rem; }
-    .sign-toggle {
-      position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
-      width: 34px; height: calc(100% - 12px); border-radius: 5px; border: 1.5px solid var(--gray-border);
-      background: #fff; color: var(--gray); font-size: 1.05rem; font-weight: 800; line-height: 1;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; user-select: none; padding: 0;
-    }
-    .sign-toggle.negative { color: var(--red); border-color: var(--red); background: var(--red-light); }
-    .sign-hint { font-size: .66rem; color: var(--muted); margin-top: .3rem; font-weight: 600; }
     .error-msg { font-size: .68rem; color: var(--red); font-weight: 700; margin-top: .3rem; display: none; }
     .error-msg.show { display: block; }
 
@@ -248,11 +235,7 @@
 
         <div class="field">
           <label for="voltage">Potencial Tubo-Suelo (V) <span class="req">*</span></label>
-          <div class="signed-field">
-            <button type="button" class="sign-toggle negative" id="voltage-sign" onclick="toggleSign('voltage')" aria-label="Cambiar signo">−</button>
-            <input type="text" id="voltage" placeholder="Ej. -0.872" inputmode="decimal" oninput="sanitizeSignedInput(this)" />
-          </div>
-          <div class="sign-hint">Toca el botón − / + para cambiar el signo (el potencial normalmente es negativo).</div>
+          <input type="number" id="voltage" placeholder="Ej. -0.872" step="0.001" inputmode="decimal" />
           <div class="error-msg" id="voltage-err">Ingresa un potencial válido en Volts.</div>
         </div>
 
@@ -274,17 +257,11 @@
           <div class="geo-row" style="margin-top:.75rem;">
             <div>
               <label for="lat">Latitud Norte</label>
-              <div class="signed-field">
-                <button type="button" class="sign-toggle" id="lat-sign" onclick="toggleSign('lat')" aria-label="Cambiar signo">+</button>
-                <input type="text" id="lat" placeholder="28.650640" inputmode="decimal" oninput="sanitizeSignedInput(this); onCoordsInput();" />
-              </div>
+              <input type="number" id="lat" placeholder="28.650640" step="any" inputmode="decimal" oninput="onCoordsInput()" />
             </div>
             <div>
               <label for="lng">Longitud Oeste</label>
-              <div class="signed-field">
-                <button type="button" class="sign-toggle negative" id="lng-sign" onclick="toggleSign('lng')" aria-label="Cambiar signo">−</button>
-                <input type="text" id="lng" placeholder="-106.122940" inputmode="decimal" oninput="sanitizeSignedInput(this); onCoordsInput();" />
-              </div>
+              <input type="number" id="lng" placeholder="-106.122940" step="any" inputmode="decimal" oninput="onCoordsInput()" />
             </div>
           </div>
           <div id="formMapWrap"><div id="formMap"></div></div>
@@ -507,7 +484,6 @@
     document.getElementById('voltage').classList.add('is-valid');
     document.getElementById('voltage').classList.remove('is-error');
     document.getElementById('voltage-err').classList.remove('show');
-    updateSignButton('voltage');
   }
   function setDesc(d) {
     document.getElementById('serial').value = d;
@@ -529,7 +505,7 @@
         const p = e.target.getLatLng();
         document.getElementById('lat').value = p.lat.toFixed(6);
         document.getElementById('lng').value = p.lng.toFixed(6);
-        ['lat','lng'].forEach(id => { document.getElementById(id).classList.add('is-valid'); updateSignButton(id); });
+        ['lat','lng'].forEach(id => document.getElementById(id).classList.add('is-valid'));
       });
     } else { formMarker.setLatLng([lat, lng]); }
     formMap.setView([lat, lng], 17);
@@ -540,62 +516,6 @@
     const lng = parseFloat(document.getElementById('lng').value);
     if (!isNaN(lat) && !isNaN(lng)) initFormMap(lat, lng);
   }
-
-  // --- Manejo de signo negativo para campos numéricos (voltage, lat, lng) ---
-  // El teclado "decimal" de iOS no incluye la tecla "-", así que se usa un
-  // botón +/- dedicado para alternar el signo del valor.
-  function sanitizeSignedInput(el) {
-    let v = el.value;
-    v = v.replace(',', '.');
-    let neg = v.trim().startsWith('-');
-    v = v.replace(/-/g, '');
-    v = v.replace(/[^0-9.]/g, '');
-    const firstDot = v.indexOf('.');
-    if (firstDot !== -1) {
-      v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
-    }
-    el.value = (neg ? '-' : '') + v;
-    updateSignButton(el.id);
-  }
-
-  function toggleSign(id) {
-    const el = document.getElementById(id);
-    const v = el.value.trim();
-    if (v.startsWith('-')) {
-      el.value = v.slice(1);
-    } else if (v.length) {
-      el.value = '-' + v;
-    } else {
-      const btn = document.getElementById(id + '-sign');
-      const willBeNegative = !btn.classList.contains('negative');
-      btn.classList.toggle('negative', willBeNegative);
-      btn.textContent = willBeNegative ? '−' : '+';
-      el.dataset.pendingSign = willBeNegative ? '-' : '';
-      if (id === 'lat' || id === 'lng') onCoordsInput();
-      return;
-    }
-    updateSignButton(id);
-    if (id === 'lat' || id === 'lng') onCoordsInput();
-  }
-
-  function updateSignButton(id) {
-    const el = document.getElementById(id);
-    const btn = document.getElementById(id + '-sign');
-    if (!el || !btn) return;
-    const negative = el.value.trim().startsWith('-');
-    btn.classList.toggle('negative', negative);
-    btn.textContent = negative ? '−' : '+';
-  }
-  ['voltage','lat','lng'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => {
-      if (el.dataset.pendingSign === '-' && !el.value.startsWith('-') && el.value.length) {
-        el.value = '-' + el.value;
-        delete el.dataset.pendingSign;
-        updateSignButton(id);
-      }
-    });
-  });
   async function getLocation() {
     const btn = document.getElementById('geoBtn'), btnTxt = document.getElementById('geoBtnText');
     btn.classList.add('loading');
@@ -621,7 +541,7 @@
       }
       document.getElementById('lat').value = lat.toFixed(6);
       document.getElementById('lng').value = lng.toFixed(6);
-      ['lat','lng'].forEach(id => { document.getElementById(id).classList.add('is-valid'); updateSignButton(id); });
+      ['lat','lng'].forEach(id => document.getElementById(id).classList.add('is-valid'));
       btn.classList.remove('loading');
       btnTxt.innerHTML = `<svg viewBox="0 0 24 24" stroke-width="2" fill="none" style="width:17px;height:17px;stroke:var(--green-dark)"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Coordenadas Obtenidas`;
       showGeoStatus('ok','<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>',`Precisión: ±${Math.round(accuracy||0)} m`);
@@ -685,10 +605,7 @@
     showToastMsg('Registro guardado con éxito'); resetForm(); renderRecords();
   });
   function resetForm() {
-    ['serial','voltage','lat','lng','observaciones'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.classList.remove('is-valid','is-error'); delete el.dataset.pendingSign; });
-    document.getElementById('voltage-sign').classList.add('negative'); document.getElementById('voltage-sign').textContent = '−';
-    document.getElementById('lat-sign').classList.remove('negative'); document.getElementById('lat-sign').textContent = '+';
-    document.getElementById('lng-sign').classList.add('negative'); document.getElementById('lng-sign').textContent = '−';
+    ['serial','voltage','lat','lng','observaciones'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.classList.remove('is-valid','is-error'); });
     document.getElementById('regDate').classList.remove('is-valid','is-error');
     ['serial-err','date-err','voltage-err'].forEach(id => document.getElementById(id).classList.remove('show'));
     document.getElementById('geoBtnText').textContent = 'Obtener Coordenadas GPS';
