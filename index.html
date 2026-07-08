@@ -77,6 +77,19 @@
     input:focus { border-color: var(--green); border-left-color: var(--green); box-shadow: 0 0 0 3px rgba(74,124,63,.12); background: #fff; }
     input.is-error { border-color: var(--red); border-left-color: var(--red); box-shadow: 0 0 0 3px rgba(185,28,28,.1); }
     input.is-valid { border-left-color: var(--green); }
+
+    /* CAMPO NUMÉRICO CON SIGNO (soluciona ausencia de tecla "-" en teclado decimal de iOS) */
+    .signed-field { position: relative; }
+    .signed-field input { padding-left: 3rem; }
+    .sign-toggle {
+      position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+      width: 34px; height: calc(100% - 12px); border-radius: 5px; border: 1.5px solid var(--gray-border);
+      background: #fff; color: var(--gray); font-size: 1.05rem; font-weight: 800; line-height: 1;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; user-select: none; padding: 0;
+    }
+    .sign-toggle.negative { color: var(--red); border-color: var(--red); background: var(--red-light); }
+    .sign-hint { font-size: .66rem; color: var(--muted); margin-top: .3rem; font-weight: 600; }
     .error-msg { font-size: .68rem; color: var(--red); font-weight: 700; margin-top: .3rem; display: none; }
     .error-msg.show { display: block; }
 
@@ -111,6 +124,24 @@
     #formMapWrap { display: none; margin-top: .75rem; border-radius: 6px; overflow: hidden; border: 1.5px solid var(--gray-border); height: 200px; }
     #formMapWrap.show { display: block; }
     #formMap { width: 100%; height: 100%; }
+
+    /* PHOTO GALLERY (formulario) */
+    .photo-hint { font-size: .65rem; color: var(--muted); font-weight: 600; margin-top: .4rem; }
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-top: .75rem; }
+    .photo-thumb { position: relative; border-radius: 6px; overflow: hidden; border: 1.5px solid var(--gray-border); aspect-ratio: 1/1; background: var(--gray-light); }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-thumb .photo-remove { position: absolute; top: 4px; right: 4px; background: rgba(185,28,28,.92); border: none; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; touch-action: manipulation; }
+    .photo-thumb .photo-remove svg { width: 11px; height: 11px; stroke: #fff; fill: none; }
+    .photo-add-tile { border: 2px dashed var(--green); border-radius: 6px; aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; background: var(--green-light); color: var(--green-dark); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .photo-add-tile svg { width: 20px; height: 20px; stroke: var(--green-dark); fill: none; }
+    .photo-add-tile span { font-size: .6rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+
+    /* PHOTO GALLERY (registros guardados) */
+    .record-photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; border-top: 1px solid var(--border); background: var(--border); }
+    .record-photo-item { position: relative; aspect-ratio: 1/1; background: var(--gray-light); overflow: hidden; }
+    .record-photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .record-photo-item a.photo-download { position: absolute; bottom: 4px; right: 4px; background: rgba(45,90,34,.85); border: none; color: #fff; width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+    .record-photo-item a.photo-download svg { width: 13px; height: 13px; stroke: #fff; fill: none; }
 
     /* SUBMIT */
     .btn-submit { width: 100%; padding: .95rem; background: var(--green-dark); color: #fff; font-size: .97rem; font-weight: 800; font-family: inherit; border: none; border-radius: 6px; cursor: pointer; letter-spacing: .04em; transition: background .15s, transform .1s, box-shadow .15s; touch-action: manipulation; box-shadow: 0 4px 14px rgba(45,90,34,.35); display: flex; align-items: center; justify-content: center; gap: .6rem; text-transform: uppercase; }
@@ -235,7 +266,11 @@
 
         <div class="field">
           <label for="voltage">Potencial Tubo-Suelo (V) <span class="req">*</span></label>
-          <input type="number" id="voltage" placeholder="Ej. -0.872" step="0.001" inputmode="decimal" />
+          <div class="signed-field">
+            <button type="button" class="sign-toggle negative" id="voltage-sign" onclick="toggleSign('voltage')" aria-label="Cambiar signo">−</button>
+            <input type="text" id="voltage" placeholder="Ej. -0.872" inputmode="decimal" oninput="sanitizeSignedInput(this)" />
+          </div>
+          <div class="sign-hint">Toca el botón − / + para cambiar el signo (el potencial normalmente es negativo).</div>
           <div class="error-msg" id="voltage-err">Ingresa un potencial válido en Volts.</div>
         </div>
 
@@ -257,28 +292,32 @@
           <div class="geo-row" style="margin-top:.75rem;">
             <div>
               <label for="lat">Latitud Norte</label>
-              <input type="number" id="lat" placeholder="28.650640" step="any" inputmode="decimal" oninput="onCoordsInput()" />
+              <div class="signed-field">
+                <button type="button" class="sign-toggle" id="lat-sign" onclick="toggleSign('lat')" aria-label="Cambiar signo">+</button>
+                <input type="text" id="lat" placeholder="28.650640" inputmode="decimal" oninput="sanitizeSignedInput(this); onCoordsInput();" />
+              </div>
             </div>
             <div>
               <label for="lng">Longitud Oeste</label>
-              <input type="number" id="lng" placeholder="-106.122940" step="any" inputmode="decimal" oninput="onCoordsInput()" />
+              <div class="signed-field">
+                <button type="button" class="sign-toggle negative" id="lng-sign" onclick="toggleSign('lng')" aria-label="Cambiar signo">−</button>
+                <input type="text" id="lng" placeholder="-106.122940" inputmode="decimal" oninput="sanitizeSignedInput(this); onCoordsInput();" />
+              </div>
             </div>
           </div>
           <div id="formMapWrap"><div id="formMap"></div></div>
         </div>
 
         <div class="field">
-          <label>Fotografía del Sitio</label>
+          <label>Fotografías del Sitio</label>
           <button type="button" class="btn-geo" id="photoBtn" onclick="takePhoto()">
             <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
-            <span id="photoBtnText">Tomar / Elegir Foto</span>
+            <span id="photoBtnText">Tomar / Elegir Fotos</span>
           </button>
-          <input type="file" id="photoFallback" accept="image/*" capture="environment" style="display:none" onchange="onPhotoFallback(event)" />
-          <div id="photoPreviewWrap" style="display:none;margin-top:.75rem;position:relative;">
-            <img id="photoPreview" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px;border:1.5px solid var(--gray-border);display:block;" />
-            <button type="button" onclick="removePhoto()" style="position:absolute;top:.5rem;right:.5rem;background:rgba(185,28,28,.92);border:none;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-              <svg viewBox="0 0 24 24" stroke-width="2.5" style="width:14px;height:14px;stroke:#fff;fill:none;"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+          <div class="photo-hint">Opcional. Se recomiendan mínimo 3 fotos, pero puedes guardar el registro sin ninguna o con las que tengas.</div>
+          <input type="file" id="photoFallback" accept="image/*" capture="environment" multiple style="display:none" onchange="onPhotoFallback(event)" />
+          <div id="photoPreviewWrap" style="display:none;">
+            <div class="photo-grid" id="photoPreviewGrid"></div>
           </div>
         </div>
 
@@ -335,7 +374,7 @@
   const CapCamera = Cap?.Plugins?.Camera;
   const CapGeolocation = Cap?.Plugins?.Geolocation;
 
-  let currentPhotoBase64 = null; // foto actual del formulario (dataURL)
+  let currentPhotos = []; // fotos actuales del formulario (array de dataURL), sin mínimo ni máximo obligatorio
 
   async function takePhoto() {
     if (CapCamera) {
@@ -347,7 +386,7 @@
           source: 'PROMPT',      // CameraSource.Prompt -> deja elegir Cámara o Galería
           width: 800
         });
-        setPhotoPreview(photo.dataUrl);
+        addPhotoToPreview(photo.dataUrl);
       } catch (e) {
         // El usuario cerró el diálogo o negó el permiso; no hacer nada.
       }
@@ -357,24 +396,22 @@
     }
   }
   function onPhotoFallback(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhotoPreview(reader.result);
-    reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => addPhotoToPreview(reader.result);
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
   }
-  function setPhotoPreview(dataUrl) {
+  function addPhotoToPreview(dataUrl) {
     compressImage(dataUrl, 700, 0.5).then((compressed) => {
-      currentPhotoBase64 = compressed;
-      document.getElementById('photoPreview').src = compressed;
-      document.getElementById('photoPreviewWrap').style.display = 'block';
-      document.getElementById('photoBtnText').textContent = 'Cambiar Foto';
+      currentPhotos.push(compressed);
+      renderPhotoPreviewGrid();
     }).catch(() => {
       // Si por alguna razón falla la compresión, se usa la foto original
-      currentPhotoBase64 = dataUrl;
-      document.getElementById('photoPreview').src = dataUrl;
-      document.getElementById('photoPreviewWrap').style.display = 'block';
-      document.getElementById('photoBtnText').textContent = 'Cambiar Foto';
+      currentPhotos.push(dataUrl);
+      renderPhotoPreviewGrid();
     });
   }
   function compressImage(dataUrl, maxWidth, quality) {
@@ -392,11 +429,38 @@
       img.src = dataUrl;
     });
   }
-  function removePhoto() {
-    currentPhotoBase64 = null;
-    document.getElementById('photoPreviewWrap').style.display = 'none';
+  function renderPhotoPreviewGrid() {
+    const wrap = document.getElementById('photoPreviewWrap');
+    const grid = document.getElementById('photoPreviewGrid');
+    const btnTxt = document.getElementById('photoBtnText');
+    if (currentPhotos.length === 0) {
+      wrap.style.display = 'none';
+      grid.innerHTML = '';
+      btnTxt.textContent = 'Tomar / Elegir Fotos';
+      return;
+    }
+    wrap.style.display = 'block';
+    btnTxt.textContent = `Agregar más fotos (${currentPhotos.length})`;
+    grid.innerHTML = currentPhotos.map((src, i) => `
+      <div class="photo-thumb">
+        <img src="${src}" alt="Foto ${i+1}" />
+        <button type="button" class="photo-remove" onclick="removePhotoAt(${i})" title="Quitar foto">
+          <svg viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>`).join('') + `
+      <div class="photo-add-tile" onclick="takePhoto()">
+        <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        <span>Agregar</span>
+      </div>`;
+  }
+  function removePhotoAt(index) {
+    currentPhotos.splice(index, 1);
+    renderPhotoPreviewGrid();
+  }
+  function resetPhotos() {
+    currentPhotos = [];
     document.getElementById('photoFallback').value = '';
-    document.getElementById('photoBtnText').textContent = 'Tomar / Elegir Foto';
+    renderPhotoPreviewGrid();
   }
 
   // ===== Almacenamiento de fotos en IndexedDB =====
@@ -420,11 +484,11 @@
     });
     return _photoDbPromise;
   }
-  async function savePhotoDB(id, dataUrl) {
+  async function savePhotoDB(id, photos) {
     const db = await openPhotoDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(PHOTO_STORE, 'readwrite');
-      tx.objectStore(PHOTO_STORE).put({ id, dataUrl });
+      tx.objectStore(PHOTO_STORE).put({ id, photos });
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });
@@ -435,7 +499,13 @@
       return await new Promise((resolve, reject) => {
         const tx = db.transaction(PHOTO_STORE, 'readonly');
         const req = tx.objectStore(PHOTO_STORE).get(id);
-        req.onsuccess = () => resolve(req.result ? req.result.dataUrl : null);
+        req.onsuccess = () => {
+          const r = req.result;
+          if (!r) { resolve(null); return; }
+          if (Array.isArray(r.photos)) resolve(r.photos);
+          else if (r.dataUrl) resolve([r.dataUrl]);
+          else resolve(null);
+        };
         req.onerror = () => reject(req.error);
       });
     } catch { return null; }
@@ -484,6 +554,7 @@
     document.getElementById('voltage').classList.add('is-valid');
     document.getElementById('voltage').classList.remove('is-error');
     document.getElementById('voltage-err').classList.remove('show');
+    updateSignButton('voltage');
   }
   function setDesc(d) {
     document.getElementById('serial').value = d;
@@ -505,7 +576,7 @@
         const p = e.target.getLatLng();
         document.getElementById('lat').value = p.lat.toFixed(6);
         document.getElementById('lng').value = p.lng.toFixed(6);
-        ['lat','lng'].forEach(id => document.getElementById(id).classList.add('is-valid'));
+        ['lat','lng'].forEach(id => { document.getElementById(id).classList.add('is-valid'); updateSignButton(id); });
       });
     } else { formMarker.setLatLng([lat, lng]); }
     formMap.setView([lat, lng], 17);
@@ -516,6 +587,62 @@
     const lng = parseFloat(document.getElementById('lng').value);
     if (!isNaN(lat) && !isNaN(lng)) initFormMap(lat, lng);
   }
+
+  // --- Manejo de signo negativo para campos numéricos (voltage, lat, lng) ---
+  // El teclado "decimal" de iOS no incluye la tecla "-", así que se usa un
+  // botón +/- dedicado para alternar el signo del valor.
+  function sanitizeSignedInput(el) {
+    let v = el.value;
+    v = v.replace(',', '.');
+    let neg = v.trim().startsWith('-');
+    v = v.replace(/-/g, '');
+    v = v.replace(/[^0-9.]/g, '');
+    const firstDot = v.indexOf('.');
+    if (firstDot !== -1) {
+      v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
+    }
+    el.value = (neg ? '-' : '') + v;
+    updateSignButton(el.id);
+  }
+
+  function toggleSign(id) {
+    const el = document.getElementById(id);
+    const v = el.value.trim();
+    if (v.startsWith('-')) {
+      el.value = v.slice(1);
+    } else if (v.length) {
+      el.value = '-' + v;
+    } else {
+      const btn = document.getElementById(id + '-sign');
+      const willBeNegative = !btn.classList.contains('negative');
+      btn.classList.toggle('negative', willBeNegative);
+      btn.textContent = willBeNegative ? '−' : '+';
+      el.dataset.pendingSign = willBeNegative ? '-' : '';
+      if (id === 'lat' || id === 'lng') onCoordsInput();
+      return;
+    }
+    updateSignButton(id);
+    if (id === 'lat' || id === 'lng') onCoordsInput();
+  }
+
+  function updateSignButton(id) {
+    const el = document.getElementById(id);
+    const btn = document.getElementById(id + '-sign');
+    if (!el || !btn) return;
+    const negative = el.value.trim().startsWith('-');
+    btn.classList.toggle('negative', negative);
+    btn.textContent = negative ? '−' : '+';
+  }
+  ['voltage','lat','lng'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => {
+      if (el.dataset.pendingSign === '-' && !el.value.startsWith('-') && el.value.length) {
+        el.value = '-' + el.value;
+        delete el.dataset.pendingSign;
+        updateSignButton(id);
+      }
+    });
+  });
   async function getLocation() {
     const btn = document.getElementById('geoBtn'), btnTxt = document.getElementById('geoBtnText');
     btn.classList.add('loading');
@@ -541,7 +668,7 @@
       }
       document.getElementById('lat').value = lat.toFixed(6);
       document.getElementById('lng').value = lng.toFixed(6);
-      ['lat','lng'].forEach(id => document.getElementById(id).classList.add('is-valid'));
+      ['lat','lng'].forEach(id => { document.getElementById(id).classList.add('is-valid'); updateSignButton(id); });
       btn.classList.remove('loading');
       btnTxt.innerHTML = `<svg viewBox="0 0 24 24" stroke-width="2" fill="none" style="width:17px;height:17px;stroke:var(--green-dark)"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Coordenadas Obtenidas`;
       showGeoStatus('ok','<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>',`Precisión: ±${Math.round(accuracy||0)} m`);
@@ -579,18 +706,20 @@
       voltage: parseFloat(document.getElementById('voltage').value),
       obs: document.getElementById('observaciones').value.trim(),
       lat: finalLat || null, lng: finalLng || null,
-      photo: false, // bandera: la foto en sí se guarda aparte, en IndexedDB
+      photo: false, photoCount: 0, // las fotos en sí se guardan aparte, en IndexedDB
       savedAt: new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' })
     };
 
-    // Si hay foto, primero se intenta guardar en IndexedDB (espacio mucho mayor que localStorage)
-    if (currentPhotoBase64) {
+    // Si hay fotos, primero se intenta guardar en IndexedDB (espacio mucho mayor que localStorage)
+    if (currentPhotos.length > 0) {
       try {
-        await savePhotoDB(recordId, currentPhotoBase64);
+        await savePhotoDB(recordId, currentPhotos);
         record.photo = true;
+        record.photoCount = currentPhotos.length;
       } catch (err) {
-        alert('No se pudo guardar la foto (sin espacio disponible para imágenes en este dispositivo).\n\nEl registro se guardará SIN la foto.');
+        alert('No se pudieron guardar las fotos (sin espacio disponible para imágenes en este dispositivo).\n\nEl registro se guardará SIN fotos.');
         record.photo = false;
+        record.photoCount = 0;
       }
     }
 
@@ -605,14 +734,17 @@
     showToastMsg('Registro guardado con éxito'); resetForm(); renderRecords();
   });
   function resetForm() {
-    ['serial','voltage','lat','lng','observaciones'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.classList.remove('is-valid','is-error'); });
+    ['serial','voltage','lat','lng','observaciones'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.classList.remove('is-valid','is-error'); delete el.dataset.pendingSign; });
+    document.getElementById('voltage-sign').classList.add('negative'); document.getElementById('voltage-sign').textContent = '−';
+    document.getElementById('lat-sign').classList.remove('negative'); document.getElementById('lat-sign').textContent = '+';
+    document.getElementById('lng-sign').classList.add('negative'); document.getElementById('lng-sign').textContent = '−';
     document.getElementById('regDate').classList.remove('is-valid','is-error');
     ['serial-err','date-err','voltage-err'].forEach(id => document.getElementById(id).classList.remove('show'));
     document.getElementById('geoBtnText').textContent = 'Obtener Coordenadas GPS';
     document.getElementById('geoBtn').classList.remove('loading');
     document.getElementById('geoStatus').className = 'geo-status';
     document.getElementById('formMapWrap').classList.remove('show');
-    removePhoto();
+    resetPhotos();
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
     const t = new Date();
     document.getElementById('regDate').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
@@ -659,7 +791,7 @@
           </div>
           ${r.obs ? `<div class="record-obs">${r.obs}</div>` : ''}
         </div>
-        ${r.photo ? `<img id="photo-${r.id}" style="width:100%;max-height:220px;object-fit:cover;display:block;border-top:1px solid var(--border);background:var(--gray-light);" />` : ''}
+        ${r.photo ? `<div id="photos-${r.id}" class="record-photo-grid"></div>` : ''}
         ${r.lat && r.lng ? `
         <div class="record-map-wrap"><div id="map-${r.id}" class="leaflet-map"></div></div>
         <a class="map-link" href="https://www.google.com/maps?q=${r.lat},${r.lng}" target="_blank" rel="noopener">
@@ -670,10 +802,17 @@
     container.innerHTML = `<div class="record-list">${html}</div>`;
     records.forEach(r => {
       if (r.photo) {
-        getPhotoDB(r.id).then((dataUrl) => {
-          if (!dataUrl) return;
-          const img = document.getElementById(`photo-${r.id}`);
-          if (img) img.src = dataUrl;
+        getPhotoDB(r.id).then((photos) => {
+          if (!photos || !photos.length) return;
+          const container = document.getElementById(`photos-${r.id}`);
+          if (!container) return;
+          container.innerHTML = photos.map((src, i) => `
+            <div class="record-photo-item">
+              <img src="${src}" alt="Foto ${i+1} de ${r.serial}" />
+              <a class="photo-download" href="${src}" download="${(r.serial||'foto').replace(/[^a-z0-9_-]+/gi,'_')}_${i+1}.jpg" title="Descargar foto">
+                <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+              </a>
+            </div>`).join('');
         });
       }
       if (!r.lat || !r.lng) return;
@@ -697,12 +836,13 @@
           'Hora': r.savedAt, 'Potencial T/S (V)': r.voltage,
           'Cumple Norma (≥ -0.85V)': r.voltage <= -0.85 ? 'SÍ' : 'NO',
           'Observaciones': r.obs || '',
+          'Núm. Fotos': r.photoCount || (r.photo ? 1 : 0),
           'Latitud Norte': r.lat ? parseFloat(r.lat) : '',
           'Longitud Oeste': r.lng ? parseFloat(r.lng) : '',
           'Google Maps': r.lat && r.lng ? `https://www.google.com/maps?q=${r.lat},${r.lng}` : ''
         }));
         const wb = XLSX.utils.book_new(), ws = XLSX.utils.json_to_sheet(rows);
-        ws['!cols'] = [{wch:4},{wch:22},{wch:18},{wch:8},{wch:16},{wch:20},{wch:30},{wch:14},{wch:14},{wch:50}];
+        ws['!cols'] = [{wch:4},{wch:22},{wch:18},{wch:8},{wch:16},{wch:20},{wch:30},{wch:10},{wch:14},{wch:14},{wch:50}];
         XLSX.utils.book_append_sheet(wb, ws, 'SPC Cantera');
         const t = new Date(), stamp = `${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}`;
         XLSX.writeFile(wb, `SPC_Cantera_${stamp}.xlsx`);
